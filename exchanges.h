@@ -47,3 +47,26 @@ const exchange_settings bitfinexUSDBTC = {
   "{\"event\":\"subscribe\",\"channel\":\"trades\",\"symbol\":\"tBTCUSD\" }"
 };
 
+
+
+// New exchanges listening to fetchPairs setting
+
+struct exchange_settings_opt {
+  char* host;
+  int   port;
+  char* url;
+  char* wsproto;
+  char* prefix;
+  char* suffix;
+  char* separator;
+};
+
+const exchange_settings_opt okex = {
+  "real.okex.com",
+  443,
+  "/ws/v3",
+  "websocket",
+  "{\"op\": \"subscribe\", \"args\": [\"index/ticker:",
+  "\"]}",
+  "\",\"index/ticker:"
+};

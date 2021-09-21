@@ -1,5 +1,18 @@
-# Bitcoin price ticker with ESP8266 (realtime websockets)
+Description from orginal repository after the changes paragraph.
+Removed dead links and generalized description (replaced Bitcoin with Crypto)
 
+
+
+# Changes introduced by this fork
+* Added new exchange websocket
+* Added option to select which pairs should be dispalyed
+* Support for multiple pairs
+* (Optional) Show asset part of name (maybe problematic on 8 digit display)
+* Only display USD price
+
+
+
+# Crypto price ticker with ESP8266 (realtime websockets)
 * 7-segment 8-bit - or - Dot Matrix LED Display support with 32x8px
 * bitstamp & bitfinex websocket interfacing for lightning fast, real time updates!
 * solderless build possible (if you order the display with pre-soldered pin headers)
@@ -15,14 +28,13 @@ v0.2-bitstamp-websockets in action ([gfycat link](https://gfycat.com/gifs/detail
 ![picture](docs/images/btc-ticker-esp8266-matrix32.jpg)  
 v0.3 with dot matrix display
 
-
 ![picture](docs/images/btc-ticker-esp8266.jpg)  
 original prototype
 
 ## components
-* ESP8266 Wemos D1 R2 Uno ([link](http://s.click.aliexpress.com/e/cN7TWnfi)) or ESP8266s/NodeMCUs ([link](http://s.click.aliexpress.com/e/bqhV6bqg)) or Wemos D1 Mini
-* 7 segment display with MAX7219 ([link](http://s.click.aliexpress.com/e/7uottDW)) or Dot Matrix display ([link](http://s.click.aliexpress.com/e/Jckdk7Q))
-* dupont cables (female-to-male) and maybe a cheap antenna ;)
+* ESP8266s/NodeMCUs or Wemos D1 Mini
+* 7 segment display with MAX7219
+* dupont cables
 
 ## wiring 7-segment (software SPI, Wemos D1 Mini)
 
@@ -32,7 +44,7 @@ GND | GND
 5V/VIN | VCC
 D8  | CS
 D7  | DIN
-D5  | CLK
+D6  | CLK
 
 ## wiring dot-matrix-display using hardware SPI
 
@@ -40,9 +52,9 @@ NodeMCU | Display
 ---     | ---
 GND     | GND
 5V/VIN  | VCC
-D2      | CS
-D5      | CLK
-D7      | DIN
+D6      | CS
+D7      | CLK
+D8      | DIN
 
 ## how to install
 - flash the board
@@ -66,16 +78,3 @@ IR Remote Tester|https://www.thingiverse.com/thing:1413083|works good (I closed 
 
 - compilation error in LedControl.h:  
 solution: comment out or delete pgmspace.h include
-
-
-## TODO
-
-* ! correct level-shifting to 5V (3.3V is out of spec, but works anyway)
-* ~~add 5th digit for next ATHs ;-)~~
-* web portal configuration 
-* ~~better error handling (although it seems to be pretty stable with good connection)~~
-* ~~maybe use websockets for real-time ticker~~
-* ~~add more APIs and currencies~~ plus option to choose
-* ~~TLS support for HTTPS requests~~
-* ~~options for 3D printed case~~
-

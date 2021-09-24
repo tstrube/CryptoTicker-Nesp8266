@@ -1,22 +1,18 @@
-Description from orginal repository after the changes paragraph.
-Removed dead links and generalized description (replaced Bitcoin with Crypto)
-
-
-
 # Changes introduced by this fork
-* Added new exchange websocket
-* Added option to select which pairs should be dispalyed
+* Added new exchange okex
+* Added option to select which pairs should be displayed
 * Support for multiple pairs
-* (Optional) Show asset part of name (maybe problematic on 8 digit display)
-* Only display USD price
-
-
+* (Optional) Show asset part of name 
+  * (maybe problematic high currency coins like bitcoin)
+  * to combat this, added option to shorten values
+* Only displays USD price
+* Removed support for Matrix display (I didn't need it)
 
 # Crypto price ticker with ESP8266 (realtime websockets)
-* 7-segment 8-bit - or - Dot Matrix LED Display support with 32x8px
-* bitstamp & bitfinex websocket interfacing for lightning fast, real time updates!
+* 7-segment 8-bit display
+* bitstamp, bitfinex, okex websocket interfacing for lightning fast, real time updates!
 * solderless build possible (if you order the display with pre-soldered pin headers)
-* low power (<0.5W), cheap to build (around 5 EUR)
+* low power (<0.5W), cheap to build
 
 ## pictures in action
 ![animation](https://thumbs.gfycat.com/VainBeautifulAcornwoodpecker-size_restricted.gif)  
@@ -32,13 +28,13 @@ v0.3 with dot matrix display
 original prototype
 
 ## components
-* ESP8266s/NodeMCUs or Wemos D1 Mini
+* NodeMCUs
 * 7 segment display with MAX7219
 * dupont cables
 
-## wiring 7-segment (software SPI, Wemos D1 Mini)
+## wiring 7-segment
 
-D1 Mini | Display
+NodeMCUs | Display
 --- | ---
 GND | GND
 5V/VIN | VCC
@@ -46,33 +42,15 @@ D8  | CS
 D7  | DIN
 D6  | CLK
 
-## wiring dot-matrix-display using hardware SPI
-
-NodeMCU | Display
----     | ---
-GND     | GND
-5V/VIN  | VCC
-D6      | CS
-D7      | CLK
-D8      | DIN
-
 ## how to install
-- flash the board
-  * upload source sketch with arduino IDE
-  * or flash binary [(download)](https://github.com/nebman/btc-ticker-esp8266/releases) with [esptool (python)](https://github.com/espressif/esptool) or [flash download tools (WIN)](https://espressif.com/en/support/download/other-tools) @ address 0x0
-- connect board to power 
+- flash the board (upload source sketch with arduino IDE)
+- connect board to power
 - connect your smartphone/computer to ESPxxxxxx wifi
 - enter your home wifi settings at the captive portal
 
-## 3D printed case options
+## My 3D printed case
 
-these are the 3rd party designs I have tested for this project
 
-Case | Link | Remarks
------|-----|-----
-coinboard|https://www.thingiverse.com/thing:2785082 |Wemos D1 only, works okish with some hotglue ([picture](docs/images/photo_coinboard_case.jpg))
-ESP8266 Matrix Display Case|https://www.thingiverse.com/thing:2885225| printed too small, pay attention to your matrix module size! mine was a little larger
-IR Remote Tester|https://www.thingiverse.com/thing:1413083|works good (I closed the sensor hole above the display) but screw mechanism needs rework or maybe screw inserts
 
 ## known issues
 

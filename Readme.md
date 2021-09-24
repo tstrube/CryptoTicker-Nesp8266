@@ -7,10 +7,11 @@
   * to combat this, added option to shorten values
 * Only displays USD price
 * Removed support for Matrix display (I didn't need it)
+* Removed old websocket settings and untested exchanges
 
 # Crypto price ticker with ESP8266 (realtime websockets)
 * 7-segment 8-bit display
-* bitstamp, bitfinex, okex websocket interfacing for lightning fast, real time updates!
+* okex websocket interfacing for lightning fast, real time updates!
 * solderless build possible (if you order the display with pre-soldered pin headers)
 * low power (<0.5W), cheap to build
 

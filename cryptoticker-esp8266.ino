@@ -1,99 +1,76 @@
-#include "exchanges.h"
-
-// CONFIGURATION PART *************************************************************************
+// START CONFIGURATION  ***************************************************************************
 
 // Set DEBUGGING for addiditonal debugging output over serial
 // #define DEBUGGING
 
-// Set Display type, either SEGMENT7 or MATRIX32
-#define SEGMENT7
-//#define MATRIX32
-
-// Features MDNS, OTA
-#define FEATURE_OTA
-#define FEATURE_MDNS
-
 // set Hostname
-#define HOSTNAME "ESP-BTC-TICKER"
+#define HOSTNAME "ESP-CRYPTO-TICKER"
 
-#define ENABLE_BITFINEX  // enable WSS support and array handling
-exchange_settings exchange = bitfinexUSDBTC;
+// set SHOW_ASSET_NAME to display text from "exchange_assets" array (max 4 chars)
+// (see function "convertCharToSegmentDigit" regarding custom character definitions for 7-digit display)
+#define SHOW_ASSET_NAME
 
-// END CONFIG *********************************************************************************
-
-
-#ifdef FEATURE_MDNS
-  #include <ESP8266mDNS.h>
-#endif
-
-#ifdef FEATURE_OTA
-  #include <ArduinoOTA.h>
-#endif
-
-#include <ArduinoJson.h>
-
-#include <ESP8266WiFi.h>
-#include <DNSServer.h>
-#include <ESP8266WebServer.h>
-#include <WiFiManager.h>
-#include <WebSocketClient.h>  // https://github.com/pablorodiz/Arduino-Websocket
-
-#ifdef SEGMENT7
-  #include <LedControl.h>
-#endif
-#ifdef MATRIX32
-  #include <U8g2lib.h>
-  #include <U8x8lib.h>
-#endif
-
-WiFiManager wifiManager;
-WiFiClientSecure  client;
-WebSocketClient ws;
+// set exchange 
+exchange_settings exchange = okex;
+String[] exchange_pairs = {"ETH-USDT", "XCH-USDT"};
+String[] exchange_assets = {"ETH", "CHIA"};
+int exchange_pairs_count = 2;
 
 // Variables and constants for timeouts 
-
-const int     timeout_hard_threshold = 120000; // reconnect after 120sec
-const int     timeout_soft_threshold = 60000; // timeout default 60sec, send ping to check connection
+const int     timeout_hard_threshold = 60000; // reconnect after 60sec
+const int     timeout_soft_threshold = 30000; // timeout default 30sec, send ping to check connection
 boolean       timeout_soft_sent_ping = false;
 unsigned long timeout_next = 0;
 unsigned long timeout_flashing_dot = 0;
 unsigned int  timeout_reconnect_count = 0;
 
-#ifdef SEGMENT7
-  LedControl lc = LedControl(D7, D5, D8, 1);
-  unsigned int  timeout_swap_usdbtc = 0;
-  boolean       usdbtc = false;
-#endif
-#ifdef MATRIX32
-  U8G2_MAX7219_32X8_F_4W_HW_SPI matrix(U8G2_R0, D2, U8X8_PIN_NONE);
-  byte _progress = 0;
-  String _text = "";
-  boolean _dot = false;
-#endif
+// END CONFIG *************************************************************************************
+// START INCLUDES *********************************************************************************
 
-// current values
-int last = 0;
-int err  = 0;
+#include "exchanges.h"
 
+#include <ESP8266mDNS.h>
+#include <ArduinoJson.h>
+#include <ESP8266WiFi.h>
+#include <DNSServer.h>
+#include <ESP8266WebServer.h>
+#include <WiFiManager.h>
+#include <WebSocketClient.h>  // https://github.com/pablorodiz/Arduino-Websocket
+#include <LedControl.h>
+#include <math.h>
+// todo?: stdlib
+
+// init LedControl library, pin connection see Readme.md
+LedControl lc = LedControl(D7, D6, D8, 1);
+
+// init wifi
+WiFiManager wifiManager;
+WiFiClientSecure client;
+
+// init websocket (ws)
+WebSocketClient ws;
+
+// END INCLUDES ***********************************************************************************
+// START SETUP ************************************************************************************
+
+// setup wifi, connect wifi
 void setup() {
   // start serial for debug output
   Serial.begin(115200);
   Serial.println();
   Serial.println("INIT");
-
-  initDisplay();
+  
+  // wakeup 7 segment display, set brightness
+  lc.shutdown(0, false);
+  lc.setIntensity(0, 6);
   clearDisplay();
-  writeStringDisplay("boot", true);
 
   // use 8 dots for startup animation
   setProgress(1);
   Serial.println("WIFI AUTO-CONFIG");
-  writeStringDisplay("Auto", true);
  
   // autoconfiguration portal for wifi settings
-#ifdef HOSTNAME
   WiFi.hostname(HOSTNAME);
-#endif
   wifiManager.setAPCallback(configModeCallback);
   wifiManager.autoConnect();
 
@@ -101,36 +78,21 @@ void setup() {
   setProgress(2);
   Serial.println("WIFI DONE");
 
-#ifdef FEATURE_MDNS
   // MDNS
   if (!MDNS.begin(HOSTNAME)) {
     Serial.println("MDNS ERROR!");
+
   } else {
     MDNS.addService("http", "tcp", 80);
     Serial.println("mDNS UP");
   }
   setProgress(3);
-#endif
-
-#ifdef FEATURE_OTA
-  // Arduino OTA
-  ArduinoOTA.onStart([]() {
-    Serial.println("OTA Start");
-    writeStringDisplay("OTASTART", true);
-  });
-  ArduinoOTA.onEnd([]() {
-    Serial.println("OTA End");
-    writeStringDisplay("OTAEND", true);
-  });
-  ArduinoOTA.begin();
-  setProgress(4);
-  Serial.println("OTA started");
-#endif
 
   setProgress(5);
   connect(false);
 }
 
+// (re)connect ws
 void connect(boolean reconnect) {
   timeout_soft_sent_ping = false;
 
@@ -145,6 +107,7 @@ void connect(boolean reconnect) {
   if (client.connect(exchange.host, exchange.port)) {
     Serial.println("WS Connected");
     setProgress(6);
+
   } else {
     Serial.println("WS Connection failed.");
     reboot();
@@ -160,6 +123,7 @@ void connect(boolean reconnect) {
   if (ws.handshake(client)) {
     Serial.println("WS Handshake successful");
     setProgress(7);
+
   } else {
     Serial.println("WS Handshake failed.");
     reboot();
@@ -167,10 +131,19 @@ void connect(boolean reconnect) {
 
   // subscribe to event channel "live_trades"
   Serial.println("WS Subscribe");
-  ws.sendData(exchange.subscribe);
-  setProgress(8);
 
-  
+  String subscribe_command = exchange.prefix;
+  bool first_pair = true;
+
+  for (int i = 0; i < exchange_pairs_count; i++) {
+    if (!first_pair) subscribe_command += exchange.separator;
+    first_pair = false;
+    subscribe_command += exchange_pairs[i];
+  }
+  subscribe_command = exchange.suffix;
+
+  ws.sendData(subscribe_command);
+  setProgress(8);
 
   // Finish setup, complete animation, set first timeout
   clearDisplay();
@@ -181,10 +154,22 @@ void connect(boolean reconnect) {
   Serial.println();
 }
 
+void reboot(void) {
+  setDashes();
+  delay(1000);
+  ESP.reset();
+}
+
+void configModeCallback (WiFiManager *myWiFiManager) {
+  Serial.println("Entered wifi portal config mode");
+  Serial.println(WiFi.softAPIP());
+  Serial.println(myWiFiManager->getConfigPortalSSID());
+}
+
+// END SETUP **************************************************************************************
+// START MAIN LOOP ********************************************************************************
+
 void loop() {
-#ifdef FEATURE_OTA
-  ArduinoOTA.handle();
-#endif
   ws.process(); // process websocket 
 
   // check for hard timeout
@@ -194,6 +179,19 @@ void loop() {
     Serial.println();
     connect(true);
   }
+
+  // Process okex
+  switch (exchange.id) {
+    case "okex":
+
+    default:
+  }
+
+
+
+
+
+
 
   // check for soft timeout (slow day?) send websocket ping
   if(!timeout_soft_sent_ping && client.connected() && (long)(millis() - timeout_next + timeout_soft_threshold) >= 0) {
@@ -205,10 +203,7 @@ void loop() {
   }
 
   // flash the dot when a trade occurs
-  flashDotTrade();
-
-  // alternate currency display
-  alternateCurrency();
+  flashingDotTradOff();
 
   // check if socket still connected
   if (client.connected()) {
@@ -259,33 +254,19 @@ void loop() {
 #ifdef DEBUGGING 
           trade.printTo(Serial);
 #endif
-  
           // extract price
           last = trade["price_str"]; // last USD btc
       
           Serial.print("price = ");
           Serial.println(last);
           
-        } 
-        
-#ifdef ENABLE_BITFINEX        
-        else if (rootarray[1] == "tu") {  // Bitfinex Tradeupdate
-          last = rootarray[2][3];
-          Serial.print("price = ");
-          Serial.println(last);
-          timeout_next = millis() + timeout_hard_threshold;
-        } else if (rootarray[1] == "hb") {  // Bitfinex Heartbeat
-          timeout_next = millis() + timeout_hard_threshold;
-        }
-#endif
-        
-        else { // print unknown events and arrays
+        } else { // print unknown events and arrays
           root.printTo(Serial);
           rootarray.printTo(Serial);
           Serial.println();
         }
   
-        writePriceDisplay(true);
+        updateDisplay(asset, price);
       } 
     }
   } else {
@@ -296,228 +277,172 @@ void loop() {
   delay(5);
 }
 
-void writePriceDisplay(boolean flashDot) {
-#ifdef SEGMENT7
-  // this is gentlemen.
-  if (last >= 10000) {
-    lc.setDigit(0, 4, (last/10000), false);
+// END MAIN LOOP **********************************************************************************
+// START DSIPLAY FUNCTIONS ************************************************************************
+
+// Format and write price to display
+void updateDisplay(String asset, int price) {
+  int len = 0;
+
+#ifdef SHOW_ASSET_NAME
+  // Print asset name
+  len = asset.length();
+  if (len > 4) len = 4;
+  for (byte i = 0; i < len; i++) {
+    lc.setChar(0, 7 - i, asset.charAt(i), false);
+  }
+#endif
+
+  // Use rest of space to display last price 
+  // shorten big numbers using 1k separator - there is space for at least 4 digits
+  int remaining_space = 8 - len;
+  int required_space = floor(log10(abs(price))) + 1;
+
+  if (required_space > remaining_space) {
+    // if not enough space, add 1k separator
+    switch (required_space) {
+      case 
+    }
+  }
+
+  // Fill int array with (shortened / rounded) price
+  int out[8];
+  int dotPosition = 0;
+
+  // Check length of price
+  int length = floor(log10(abs(price))) + 1;
+  if (length > remaining_space) {
+
+
+
+
+
   } else {
-    lc.setChar(0, 4, ' ',false); //  
+
+  }
+
+
+  if (last >= 10000) {
+    lc.setDigit(0, 8, (last/10000), false);
+  } else {
+    lc.setChar(0, 4, ' ', false);
   }
   
+  lc.setDigit(0, 7, (last%100000000)/10000000, false);
+  lc.setDigit(0, 6, (last%10000000)/1000000, false);
+  lc.setDigit(0, 5, (last%1000000)/100000, false);
+  lc.setDigit(0, 4, (last%100000)/10000, false);
   lc.setDigit(0, 3, (last%10000)/1000, false);
   lc.setDigit(0, 2, (last%1000)/100, false);
   lc.setDigit(0, 1, (last%100)/10, false);
-  lc.setDigit(0, 0, (last%10), flashDot);
-#endif
-  
-  if (flashDot) {
-    timeout_flashing_dot = millis() + 100;
+  lc.setDigit(0, 0, (last%10), true);
+
+
+
+
+
+
+
+
+
+  // Fill space between 
+  for (byte i = len; i < 8 - required_space; i++) {
+    lc.setChar(0, 7 - i, ' ', false);
   }
-  
-#ifdef MATRIX32
-  char val[8] = "$";
-  itoa(last, val+1, 10);
-  flashDotTrade();
-  writeStringDisplay(val, true);
-#endif
+
+  // Fill price
+  for (int i = required_space; i < 8; i++) {
+    lc.setDigit(0, 7 - i, out[7 - i], dotPosition 7 - i || i = 7);  // dotPosition -> thousands | i = 7 -> flash on trade
+  }
+
+  // Set flashing dot timeout (turning off)
+  timeout_flashing_dot = millis() + 100;
 }
 
-#ifdef SEGMENT7
-void setAll(char c, boolean dot = false, int from = 0, int len = 4);
-void setAll(char c, boolean dot, int from, int len) {
-  for (int i=from; i<len; i++) {
-    lc.setChar(0, i, c, dot);
+// END DSIPLAY FUNCTIONS **************************************************************************
+// START DSIPLAY OUTPUT SHORTCUTS *****************************************************************
+
+// Turn all elements off
+void clearDisplay() {
+  for (int i = 0; i < 8; i++) {
+    lc.setChar(0, i, ' ', false);
   }
 }
-#endif SEGMENT7
 
-
-void setDashes (int len = 4);
-void setDashes (int len) {
-#ifdef SEGMENT7
-  setAll('-', false, 0, len);
-#endif
-#ifdef MATRIX32
-  writeStringDisplay("--------", true);
-#endif
+// Display minus on all elements
+void setDashes() {
+  for (int i = 0; i < 8; i++) {
+    lc.setChar(0, i, '-', false);
+  }
 }
 
-void reboot (void) {
-  setDashes(8);
-  delay(1000);
-  ESP.reset();
+// Use dots as progress bar
+void setProgress(byte progress) {
+  for (byte i = 0; i < 8; i++) {
+    lc.setLed(0, 7 - i, 0, i < progress);
+  }
 }
 
-void configModeCallback (WiFiManager *myWiFiManager) {
-  Serial.println("Entered wifi portal config mode");
-  Serial.println(WiFi.softAPIP());
-  writeStringDisplay(myWiFiManager->getConfigPortalSSID(), true);
-  Serial.println(myWiFiManager->getConfigPortalSSID());
+// Turn of flashing dot on trade
+void flashingDotTradOff() {
+  lc.setLed(0, 0, 0, !(millis() < timeout_flashing_dot);
 }
 
-/*     
- *  display segment bits
- *  
- *      1
- *    -----
- *   |     |
- * 6 |     | 2
- *   |     |
- *    -----
- *   |  7  |
- * 5 |     | 3
- *   |     |
- *    ----- . 0
- *      4
- * 
- */
+// Convert char to byte usable by LedControl
+byte convertCharToSegmentDigit(char c) (
+  // Implemented in library: A b c d E F H L P - _ . , <SPACE>
 
-void writeStringDisplay(String s, boolean fillEmpty = false);
-void writeStringDisplay(String s, boolean fillEmpty) {
-#ifdef SEGMENT7
-  int len = s.length();
-  if (len > 8) len = 8;
-  char c;
-
-  for (byte i=0; i<len; i++) {
-    c = s.charAt(i);
+  /*     
+  *  display segment bits
+  *  
+  *      1
+  *    -----
+  *   |     |
+  * 6 |     | 2
+  *   |     |
+  *    -----
+  *   |  7  |
+  * 5 |     | 3
+  *   |     |
+  *    ----- . 0
+  *      4
+  * 
+  */
     switch (c) {
-      case 'A':
-      case 'a':
-        lc.setRow (0, 7-i, B01110111);
-        break;
-      case 'L':
-      case 'l':
-        lc.setRow (0, 7-i, B00001110);
-        break;
+      case 'C':
+        return B01001110;
+      case 'I':
+      case 'i':
+        return B00110000;
+      case 'K':
+      case 'k':
+        return B00110000;
       case 'N':
       case 'n':
-        lc.setRow (0, 7-i, B00010101);
-        break;
+        return B00010101;
       case 'O':
       case 'o':
-        lc.setRow (0, 7-i, B00011101);
-        break;
+        return B00011101;
       case 'P':
       case 'p':
-        lc.setRow (0, 7-i, B01100111);
-        break;
+        return B01100111;
       case 'R':
       case 'r':
-        lc.setRow (0, 7-i, B00000101);
-        break;
+        return B00000101;
       case 'S':
       case 's':
-        lc.setChar(0, 7-i, '5', false);
-        break;
+        return B01011011;
+      case 'K': // Usually k (kilo) is used for 1000
+      case 'k': // but t (thousand) works too :)
       case 'T':
       case 't':
-        lc.setRow (0, 7-i, B00001111); // t
-        break;
+        return B00001111;
       case 'U':
       case 'u':
-        lc.setRow (0, 7-i, B00111110); // U
-        break;
+        return B00111110;
       default:
-        lc.setChar(0, 7-i, c, false);
-    }
-    
-  }
+        return c;
+    }   
+)
 
-  if (fillEmpty) {
-    // fill rest with empty space
-    for (byte i=len; i<8; i++) {
-      lc.setRow(0, 7-i, 0);
-    }
-  }
-#endif
-#ifdef MATRIX32
-  _text = s;
-  redrawDisplay();
-#endif
-}
-
-#ifdef MATRIX32
-void redrawDisplay() {
-  //matrix.clear();
-  matrix.firstPage();
-  do {
-    matrix.setFont(u8g2_font_5x8_tr);
-    matrix.drawStr(0, 7, _text.c_str());
-    if (_progress > 0)   matrix.drawLine(0, 7, (_progress*4)-1, 7);
-    if (_dot)            matrix.drawPixel(31,7);
-  } while ( matrix.nextPage() );
-}
-#endif 
-
-void initDisplay() {
-#ifdef SEGMENT7
-  // wakeup 7 segment display
-  lc.shutdown(0, false);
-  // set brightness
-  lc.setIntensity(0, 6);
-#endif
-#ifdef MATRIX32
-  matrix.begin();
-  matrix.setContrast(70);
-#endif
-}
-
-void clearDisplay() {
-#ifdef SEGMENT7
-  // clear all digits
-  setAll(' ', false, 0, 8);
-#endif
-#ifdef MATRIX32
-  matrix.clear();
-#endif
-}
-
-void setProgress(byte progress) {
-#ifdef SEGMENT7
-  // set first dot... etc
-  for (byte i=0; i<8; i++) {
-    lc.setLed(0, 7-i, 0, i<progress);
-  }
-#endif
-#ifdef MATRIX32
-  _progress = progress;
-  redrawDisplay();
-#endif
-}
-
-void flashDotTrade() {
-  bool flashdot;
-  
-  if(last && ((long)(millis() - timeout_flashing_dot) >= 0)) {
-    flashdot = false;
-  } else {
-    flashdot = true;
-  }
-  
-#ifdef SEGMENT7
-  lc.setLed(0, 0, 0, flashdot);
-#endif
-#ifdef MATRIX32
-  if (_dot != flashdot) {
-    _dot = flashdot;
-    redrawDisplay();
-  }
-#endif
-}
-
-void alternateCurrency() {
-#ifdef SEGMENT7  
-  // alternate USD and BTC in display every 10sec
-  if (((long)(millis() - timeout_swap_usdbtc) >= 0)) {
-    if (usdbtc) {
-      writeStringDisplay("USD");
-    } else {
-      writeStringDisplay("BTC");
-    }
-    usdbtc = !usdbtc;
-    timeout_swap_usdbtc = millis() + 10000;
-  }
-#endif
-}
+// END DSIPLAY OUTPUT SHORTCUTS *******************************************************************

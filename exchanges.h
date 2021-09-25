@@ -1,4 +1,5 @@
 struct exchange_settings {
+  char* id;
   char* host;
   int   port;
   char* url;
@@ -9,6 +10,7 @@ struct exchange_settings {
 };
 
 const exchange_settings okex = {
+  "okex",
   "real.okex.com",
   443,
   "/ws/v3",

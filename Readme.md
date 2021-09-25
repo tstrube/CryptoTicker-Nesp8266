@@ -5,6 +5,7 @@
 * (Optional) Show asset part of name 
   * (maybe problematic high currency coins like bitcoin)
   * to combat this, added option to shorten values
+* Since the original idea was for BTC, only values greater 1$ will work
 * Only displays USD price
 * Removed support for Matrix display (I didn't need it)
 * Removed old websocket settings and untested exchanges

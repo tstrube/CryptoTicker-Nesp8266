@@ -7,18 +7,18 @@
 #define HOSTNAME "ESP-CRYPTO-TICKER"
 
 // set SHOW_ASSET_NAME to display text from "exchange_assets" array (max 4 chars)
-// (see function "convertCharToSegmentDigit" regarding custom character definitions for 7-digit display)
+// (see function "convertCharToSegmentDigit" regarding custom character definitions)
 #define SHOW_ASSET_NAME
 
 // set exchange 
 exchange_settings exchange = okex;
-String[] exchange_pairs = {"ETH-USDT", "XCH-USDT"};
-String[] exchange_assets = {"ETH", "CHIA"};
-int exchange_pairs_count = 2;
+String[] exchange_pairs = {"BTC-USDT", "ETH-USDT", "XCH-USDT"};
+String[] exchange_assets = {"BTC ", "ETH ", "CHIA"};
+int exchange_pairs_count = 3;
 
 // Variables and constants for timeouts 
 const int     timeout_hard_threshold = 60000; // reconnect after 60sec
-const int     timeout_soft_threshold = 30000; // timeout default 30sec, send ping to check connection
+const int     timeout_soft_threshold = 30000; // timeout 30sec, send ping to check connection
 boolean       timeout_soft_sent_ping = false;
 unsigned long timeout_next = 0;
 unsigned long timeout_flashing_dot = 0;
@@ -35,12 +35,12 @@ unsigned int  timeout_reconnect_count = 0;
 #include <DNSServer.h>
 #include <ESP8266WebServer.h>
 #include <WiFiManager.h>
-#include <WebSocketClient.h>  // https://github.com/pablorodiz/Arduino-Websocket
+#include <WebSockets.h>
 #include <LedControl.h>
 #include <math.h>
 // todo?: stdlib
 
-// init LedControl library, pin connection see Readme.md
+// init LedControl library, pin assignment see Readme.md
 LedControl lc = LedControl(D7, D6, D8, 1);
 
 // init wifi
@@ -194,7 +194,8 @@ void loop() {
 
 
   // check for soft timeout (slow day?) send websocket ping
-  if(!timeout_soft_sent_ping && client.connected() && (long)(millis() - timeout_next + timeout_soft_threshold) >= 0) {
+  if (!timeout_soft_sent_ping && client.connected() && 
+      (long)(millis() - timeout_next + timeout_soft_threshold) >= 0) {
     // ok, lets send a PING to check connection
     Serial.println("soft timeout -> sending ping to server");
     ws.sendData("", WS_OPCODE_PING);
@@ -269,6 +270,7 @@ void loop() {
         updateDisplay(asset, price);
       } 
     }
+
   } else {
     Serial.println("Client disconnected.");
     connect(true);
@@ -282,77 +284,46 @@ void loop() {
 
 // Format and write price to display
 void updateDisplay(String asset, int price) {
-  int len = 0;
+  int asset_length = 0;
 
 #ifdef SHOW_ASSET_NAME
   // Print asset name
-  len = asset.length();
-  if (len > 4) len = 4;
-  for (byte i = 0; i < len; i++) {
+  asset_length = asset.length();
+  if (asset_length > 4) asset_length = 4;
+
+  for (int i = 0; i < asset_length; i++) {
     lc.setChar(0, 7 - i, asset.charAt(i), false);
   }
 #endif
 
   // Use rest of space to display last price 
   // shorten big numbers using 1k separator - there is space for at least 4 digits
-  int remaining_space = 8 - len;
+  int remaining_space = 8 - asset_length;
   int required_space = floor(log10(abs(price))) + 1;
+  int dotPosition = -1;
 
-  if (required_space > remaining_space) {
-    // if not enough space, add 1k separator
-    switch (required_space) {
-      case 
+  // If not enough space
+  if (remaining_space < required_space) {
+     // Find dotPosition, if required
+    if (required_space > 3) {
+      dotPosition = required_space % 3;
+      if (dotPosition == 0) dotPosition = 3;
+
+      // Calc LCD position
+      dotPosition = remaining_space - dotPosition;
+      if (dotPosition == 0) dotPosition = -1;
     }
   }
 
-  // Fill int array with (shortened / rounded) price
-  int out[8];
-  int dotPosition = 0;
-
-  // Check length of price
-  int length = floor(log10(abs(price))) + 1;
-  if (length > remaining_space) {
-
-
-
-
-
-  } else {
-
-  }
-
-
-  if (last >= 10000) {
-    lc.setDigit(0, 8, (last/10000), false);
-  } else {
-    lc.setChar(0, 4, ' ', false);
+  // Print price
+  String priceString = String(price);
+  for (int i = 0; i < min(8 - asset_length, required_space) ; i++) {
+    lc.setDigit(0, 7 - i, priceString.charAt(i), dotPosition = 7 - i);
   }
   
-  lc.setDigit(0, 7, (last%100000000)/10000000, false);
-  lc.setDigit(0, 6, (last%10000000)/1000000, false);
-  lc.setDigit(0, 5, (last%1000000)/100000, false);
-  lc.setDigit(0, 4, (last%100000)/10000, false);
-  lc.setDigit(0, 3, (last%10000)/1000, false);
-  lc.setDigit(0, 2, (last%1000)/100, false);
-  lc.setDigit(0, 1, (last%100)/10, false);
-  lc.setDigit(0, 0, (last%10), true);
-
-
-
-
-
-
-
-
-
-  // Fill space between 
-  for (byte i = len; i < 8 - required_space; i++) {
-    lc.setChar(0, 7 - i, ' ', false);
-  }
-
-  // Fill price
-  for (int i = required_space; i < 8; i++) {
-    lc.setDigit(0, 7 - i, out[7 - i], dotPosition 7 - i || i = 7);  // dotPosition -> thousands | i = 7 -> flash on trade
+  // Print empty space between asset and price
+  for (int i = asset_length; i > required_space; i--) {
+    lc.setChar(0, i, ' ', false);
   }
 
   // Set flashing dot timeout (turning off)
@@ -408,41 +379,37 @@ byte convertCharToSegmentDigit(char c) (
   *      4
   * 
   */
-    switch (c) {
-      case 'C':
-        return B01001110;
-      case 'I':
-      case 'i':
-        return B00110000;
-      case 'K':
-      case 'k':
-        return B00110000;
-      case 'N':
-      case 'n':
-        return B00010101;
-      case 'O':
-      case 'o':
-        return B00011101;
-      case 'P':
-      case 'p':
-        return B01100111;
-      case 'R':
-      case 'r':
-        return B00000101;
-      case 'S':
-      case 's':
-        return B01011011;
-      case 'K': // Usually k (kilo) is used for 1000
-      case 'k': // but t (thousand) works too :)
-      case 'T':
-      case 't':
-        return B00001111;
-      case 'U':
-      case 'u':
-        return B00111110;
-      default:
-        return c;
-    }   
+
+  switch (c) {
+    case 'C':
+      return B01001110;
+    case 'I':
+    case 'i':
+      return B00110000;
+    case 'N':
+    case 'n':
+      return B00010101;
+    case 'O':
+    case 'o':
+      return B00011101;
+    case 'P':
+    case 'p':
+      return B01100111;
+    case 'R':
+    case 'r':
+      return B00000101;
+    case 'S':
+    case 's':
+      return B01011011;
+    case 'T':
+    case 't':
+      return B00001111;
+    case 'U':
+    case 'u':
+      return B00111110;
+    default:
+      return c;
+  }   
 )
 
 // END DSIPLAY OUTPUT SHORTCUTS *******************************************************************

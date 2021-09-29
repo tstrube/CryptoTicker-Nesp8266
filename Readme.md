@@ -48,3 +48,13 @@ D6  | CLK
 ## Known issues
 - compilation error in LedControl.h:  
 solution: comment out or delete pgmspace.h include
+
+## Compile help
+### Install NodeMCU board information
+- Add https://arduino.esp8266.com/stable/package_esp8266com_index.json in the Additional Board Manager
+- Install esp8266 platform and select it from the board selection menu
+
+### Required Libraries
+- ArduinoJson by Benoit Blanchon
+- WiFiManager by tablatronix (original: tzapu)
+- LedControl by Eberhard Fahle

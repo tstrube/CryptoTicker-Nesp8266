@@ -1,19 +1,15 @@
+*Disclaimer: This is my first time working with C. Some things might not be ideal.*
+
 # Changes introduced by this fork
-- Most code changed, original used as reference only
-- Added new exchange okex
-- Added option to select which pairs should be displayed
-- Support for multiple pairs
-- (Optional) Show asset part of name 
-  - (maybe problematic high currency coins like bitcoin)
-  - to combat this, added option to shorten values
-- Since the original idea was for BTC, only values greater 1$ will work
-- Only displays USD price
+- Added new exchange coinbase
+- Added option to select multiple pairs on a loop
+- (Optional) Show asset part of name
 - Removed support for Matrix display (I didn't need it)
 - Removed old websocket settings and untested exchanges
 
 # Crypto price ticker (websockets) with ESP8266 
 - 7-segment 8 digit display
-- okex websocket interfacing for lightning fast, real time updates!
+- websocket interfacing for lightning fast, real time updates!
 - solderless build possible (if you order the display with pre-soldered pin headers)
 - low power (<0.5W), cheap to build
 
@@ -22,7 +18,7 @@
 Websockets in action ([gfycat link](https://gfycat.com/gifs/detail/VainBeautifulAcornwoodpecker))
 
 ## Components
-- NodeMCUs
+- NodeMCU
 - 7 segment display with MAX7219
 - dupont cables
 
@@ -31,30 +27,25 @@ NodeMCU | Display
 --- | ---
 GND | GND
 5V/VIN | VCC
-D8  | CS
-D7  | DIN
+D8  | LOAD
+D7  | DOUT
 D6  | CLK
 
+## My 3D printed case
+
 ## How to install
-- flash the board (upload source sketch with arduino IDE)
+- compile code and flash board using arduino IDE
 - connect board to power
 - connect your smartphone/computer to ESPxxxxxx wifi
 - enter your home wifi settings at the captive portal
 
-## My 3D printed case
-
-
-
-## Known issues
-- compilation error in LedControl.h:  
-solution: comment out or delete pgmspace.h include
+### Required Libraries
+- ArduinoJson by Benoit Blanchon
+- ArduinoWebsockets by Gil Maimon
+- LedControl by Eberhard Fahle
+- WiFiManager by tablatronix (original: tzapu)
 
 ## Compile help
 ### Install NodeMCU board information
-- Add https://arduino.esp8266.com/stable/package_esp8266com_index.json in the Additional Board Manager
+- Add "https://arduino.esp8266.com/stable/package_esp8266com_index.json" in the Additional Board Manager
 - Install esp8266 platform and select it from the board selection menu
-
-### Required Libraries
-- ArduinoJson by Benoit Blanchon
-- WiFiManager by tablatronix (original: tzapu)
-- LedControl by Eberhard Fahle

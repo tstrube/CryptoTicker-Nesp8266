@@ -1,21 +1,18 @@
-struct exchange_settings {
-  char* id;
-  char* host;
-  int   port;
-  char* url;
-  char* wsproto;
-  char* prefix;
-  char* suffix;
-  char* separator;
+// exchange struct used in script
+struct exchangeSettings {
+  char*  url;
+  String prefix;
+  String suffix;
+  String separator;
+  String asset;
+  String price;
 };
 
-const exchange_settings okex = {
-  "okex",
-  "real.okex.com",
-  443,
-  "/ws/v3",
-  "websocket",
-  "{\"op\": \"subscribe\", \"args\": [\"index/ticker:",
+const exchangeSettings coinbase = {
+  "wss://ws-feed.exchange.coinbase.com",
+  "{\"type\": \"subscribe\", \"channels\": [\"ticker\"], \"product_ids\": [\"",
   "\"]}",
-  "\",\"index/ticker:"
+  "\", \"",
+  "product_id",
+  "price"
 };

@@ -4,6 +4,7 @@
 - Added new exchange coinbase
 - Added option to select multiple pairs on a loop
 - (Optional) Show asset part of name
+- (Optional) Show value from custom function
 - Removed support for Matrix display (I didn't need it)
 - Removed old websocket settings and untested exchanges
 
@@ -12,10 +13,6 @@
 - websocket interfacing for lightning fast, real time updates!
 - solderless build possible (if you order the display with pre-soldered pin headers)
 - low power (<0.5W), cheap to build
-
-## pictures in action
-![animation](https://thumbs.gfycat.com/VainBeautifulAcornwoodpecker-size_restricted.gif)  
-Websockets in action ([gfycat link](https://gfycat.com/gifs/detail/VainBeautifulAcornwoodpecker))
 
 ## Components
 - NodeMCU

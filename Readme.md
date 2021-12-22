@@ -32,6 +32,7 @@ D7  | DOUT
 D6  | CLK
 
 ## My 3D printed case
+https://www.thingiverse.com/thing:5171668
 
 ## How to install
 - compile code and flash board using arduino IDE

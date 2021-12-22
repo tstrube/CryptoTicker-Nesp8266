@@ -19,7 +19,7 @@
 // Set DEBUGGING for addiditonal debugging output over serial
 //#define DEBUGGING
 
-// set Hostname
+// set HOSTNAME
 #define HOSTNAME "ESP-CRYPTO-TICKER"
 
 // set SHOW_ASSET_NAME to display text from "exchangePAirs" array (fill "maxAssetLength" chars)
@@ -30,11 +30,16 @@ const int assetReservedSpace = 4;
 
 // set exchange and pairs
 exchangeSettings exchange    = coinbase;
-const String exchangePairs[] = {"BTC-USD", "ETH-USD"};
+const String exchangePairs[] = {"BTC-EUR", "ETH-EUR"};
 const int exchangePairsCount = 2;
 
 // switch to next pair after ms
 const int switchPairMS       = 5000;
+
+// set SHOW_CUSTOM_VALUE to display a custom value from a function
+// it will be displayed after each full loop of the exchangePairs
+#define SHOW_CUSTOM_VALUE
+const double currentEthHodl = 0; // custom const used in function
 
 // set websocket timeouts 
 const unsigned long timeoutHardThreshold = 60000; // reconnect after 60sec
@@ -46,7 +51,7 @@ const unsigned long timeoutSoftThreshold = 20000; // send ping after 20sec
 // some globals
 String              lastPrice[exchangePairsCount];
 unsigned long       lastDisplaySwitch = 0;
-unsigned long       currentPairIndex = 0;
+int                 currentPairIndex = 0;
 
 boolean             timeoutSoftSentPing = false;
 unsigned long       timeoutHardNext = 0;
@@ -300,10 +305,21 @@ void loop() {
   if (ts > lastDisplaySwitch + switchPairMS) {
     lastDisplaySwitch = ts;
     currentPairIndex = currentPairIndex + 1;
-    if (currentPairIndex >= exchangePairsCount) currentPairIndex = 0;
-    
+
+#ifdef SHOW_CUSTOM_VALUE
+    if (currentPairIndex >= exchangePairsCount) currentPairIndex = -1;
+#else
+    if (currentPairIndex >= exchangePairsCount) currentPairIndex = 0;    
+#endif
+
     // update display
-    updateDisplay(exchangePairs[currentPairIndex], lastPrice[currentPairIndex]);
+    if (currentPairIndex >= 0) {
+      updateDisplay(exchangePairs[currentPairIndex], lastPrice[currentPairIndex]);
+
+    // display custom value
+    } else {
+      updateDisplay(String("EUR"), String(lastPrice[1].toDouble() * currentEthHodl, 0));
+    }
   }
   
   // flash last dot on new websocket message
@@ -317,7 +333,14 @@ void loop() {
 // START DSIPLAY FUNCTIONS ************************************************************************
 
 // format and write display
-void updateDisplay(String asset, String price) {
+void updateDisplay(String asset, String price) {  
+#ifdef DEBUGGING
+  Serial.print(asset);
+  Serial.println(price);
+#endif
+
+  // make sure both variables are set
+  if (asset == "" || price == "") return;
   int assetLength = 0;
 
 #ifdef SHOW_ASSET_NAME

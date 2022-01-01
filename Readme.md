@@ -31,6 +31,10 @@ D6  | CLK
 ## My 3D printed case
 https://www.thingiverse.com/thing:5171668
 
+![Case1](Case1.jpeg)
+![Case2](Case2.jpeg)
+![Connections](Connections.jpeg)
+
 ## How to install
 - compile code and flash board using arduino IDE
 - connect board to power

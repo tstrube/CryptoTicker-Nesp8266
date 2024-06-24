@@ -51,3 +51,11 @@ https://www.thingiverse.com/thing:5171668
 ### Install NodeMCU board information
 - Add "https://arduino.esp8266.com/stable/package_esp8266com_index.json" in the Additional Board Manager
 - Install esp8266 platform and select it from the board selection menu
+
+## Crypto Donations
+
+- **BTC:** bc1qqa9skjw0av0dnpzl53dhapgllw9nxpr3e3ncg6
+- **DOGE:** D6Skk3K4H8KZWc7WcG69Ki5mkXc3f8pscc
+- **ETH:** 0x7370eD840A690010eEF5726D71eEa54a9F45A202
+- **SOL:** FipyS8kETFE8XRMkDez1nRRNe1n94Etws15UQfvzRsgg
+- **XCH:** xch10t2jmnrnq8295pxqdtvn4pp5dgdcm7aar5usz0e4e57xyyjegtuqxwtq9z
